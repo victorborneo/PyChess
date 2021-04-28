@@ -26,7 +26,7 @@ class Board:
                         team = 0
 
                     if j == 0 or j == 7:
-                        to_append = [(x, y), Rook(team, f"{color}_rook.png")]
+                        to_append = [(x, y), Rook(team, f"{color}_rook.png", j % 6)]
                     elif j == 1 or j == 6:
                         to_append = [(x, y), Knight(team, f"{color}_knight.png")]
                     elif j == 2 or j == 5:
@@ -84,8 +84,9 @@ class Pawn(Piece):
         return moves
 
 class Rook(Piece):
-    def __init__(self, team, image):
+    def __init__(self, team, image, side):
         super().__init__(5, team, image)
+        self.side = side
 
     def get_moves(self, pos_x, pos_y, board):
         moves = []
@@ -276,6 +277,8 @@ class Queen(Piece):
 class King(Piece):
     def __init__(self, team, image):
         super().__init__(0, team, image)
+        self.short_castle = True
+        self.long_castle = True
     
     def get_moves(self, pos_x, pos_y, board):
         moves = []
@@ -290,4 +293,44 @@ class King(Piece):
             except IndexError:
                 pass
 
+        short_rook_alive = False
+        long_rook_alive = False
+        for line in board:
+            for _, row in line:
+                if type(row).__name__ == "Rook" and row.side == 0 and row.team == self.team:
+                    long_rook_alive = True
+                if type(row).__name__ == "Rook" and row.side == 1 and row.team == self.team:
+                    short_rook_alive = True
+
+        if not short_rook_alive:
+            self.short_castle = False
+        if not long_rook_alive:
+            self.long_castle = False
+
+        if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0:
+            moves.append((pos_y, pos_x + 2))
+        if self.long_castle is True and board[pos_y][pos_x - 1][1] == 0 and board[pos_y][pos_x - 2][1] == 0 and \
+                board[pos_y][pos_x - 3][1] == 0:
+            moves.append((pos_y, pos_x - 2))
+
         return moves
+
+    def castle(self, kind, board):
+        y = 0
+
+        for line in board:
+            x = 0
+            for _, row in line:
+                if type(row).__name__ == "Rook" and row.side == kind and row.team == self.team:
+                    rook = row
+                    index_x, index_y = x, y
+
+                x += 1
+            y += 1
+                    
+        if kind == 0:
+            board[index_y][index_x + 3][1] = rook
+            board[index_y][index_x][1] = 0
+        else:
+            board[index_y][index_x - 2][1] = rook
+            board[index_y][index_x][1] = 0

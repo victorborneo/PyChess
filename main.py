@@ -44,6 +44,25 @@ def main():
                     tile = board.board[index_y][index_x][1]
 
                     if selected is not None and (index_y, index_x) in moves:
+                        if type(selected).__name__ == "King":
+                            if index_x - aux_index_x == 2:
+                                selected.castle(1, board.board)
+                            if index_x - aux_index_x == -2:
+                                selected.castle(0, board.board)
+
+                            selected.short_castle = False
+                            selected.long_castle = False
+                        elif type(selected).__name__ == "Rook":
+                            for line in board.board:
+                                for _, row in line:
+                                    if type(row).__name__ == "King" and row.team == selected.team:
+                                        king = row
+
+                            if selected.side == 0:
+                                king.long_castle = False
+                            elif selected.side == 1:
+                                king.short_castle = False
+
                         board.board[aux_index_y][aux_index_x][1] = 0
                         board.board[index_y][index_x][1] = selected
                         board.turn = (board.turn + 1) % 2

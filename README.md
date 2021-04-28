@@ -6,5 +6,5 @@ A simple offline chess game made in Python using the pygame library and object-o
 **TO DO**
 1. En passant
 2. Pawn promotion
-3. Castling
-4. Check and checkmate
+3. Prevent castle when a piece`s attack is in the way
+4. Check, checkmate and stalemate
