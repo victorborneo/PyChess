@@ -47,6 +47,28 @@ class Board:
 
         return board
 
+    def get_all_moves(self, team):
+        moves = []
+
+        y = 0
+        for line in self.board:
+
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team == team and type(row).__name__ != "King":
+                    for move in row.get_moves(x, y, self.board):
+                        moves.append(move)
+                x += 1
+            y += 1
+
+        return moves
+
+    def reset_en_passant(self):
+        for line in self.board:
+            for _, row in line:
+                if row != 0 and type(row).__name__ == "Pawn":
+                    row.en_passant = False
+
 class Piece:
     def __init__(self, value, team, image):
         self.value = value
@@ -56,8 +78,9 @@ class Piece:
 class Pawn(Piece):
     def __init__(self, team, image):
         super().__init__(1, team, image)
+        self.en_passant = False
 
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
     
         increment = -1
@@ -73,22 +96,32 @@ class Pawn(Piece):
             if self.team == 1 and pos_y == 1 and board[pos_y + 2][pos_x][1] == 0:
                 moves.append((pos_y + 2, pos_x))
 
-        if pos_x - 1 >= 0 and board[pos_y + increment][pos_x - 1][1] != 0 and \
-                board[pos_y + increment][pos_x - 1][1].team != self.team:
-            moves.append((pos_y + increment, pos_x - 1))
+        if pos_x - 1 >= 0:
+            if (board[pos_y + increment][pos_x - 1][1] != 0 and board[pos_y + increment][pos_x - 1][1].team != self.team) or \
+                (board[pos_y][pos_x - 1][1] != 0 and board[pos_y][pos_x - 1][1].team != self.team and \
+                    type(board[pos_y][pos_x - 1][1]).__name__ == "Pawn" and board[pos_y][pos_x - 1][1].en_passant):
+                moves.append((pos_y + increment, pos_x - 1))
 
-        if pos_x + 1 < 8 and board[pos_y + increment][pos_x + 1][1] != 0 and \
-                board[pos_y + increment][pos_x + 1][1].team != self.team:
-            moves.append((pos_y + increment, pos_x + 1))
+        if pos_x + 1 < 8:
+            if (board[pos_y + increment][pos_x + 1][1] != 0 and board[pos_y + increment][pos_x + 1][1].team != self.team) or \
+                (board[pos_y][pos_x + 1][1] != 0 and board[pos_y][pos_x + 1][1].team != self.team and \
+                    type(board[pos_y][pos_x + 1][1]).__name__ == "Pawn" and board[pos_y][pos_x + 1][1].en_passant):
+                moves.append((pos_y + increment, pos_x + 1))
 
         return moves
+
+    def do_en_passant(self, pos_x, pos_y, board):
+        if self.team == 0:
+            board[pos_y + 1][pos_x][1] = 0
+        else:
+            board[pos_y - 1][pos_x][1] = 0
 
 class Rook(Piece):
     def __init__(self, team, image, side):
         super().__init__(5, team, image)
         self.side = side
 
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
 
         for i in range(7 - pos_x):
@@ -129,7 +162,7 @@ class Knight(Piece):
     def __init__(self, team, image):
         super().__init__(3, team, image)
 
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
         sequences = ((-2, -1), (-2, 1), (2, -1), (2, 1), (-1, -2), (1, -2), (-1, 2), (1, 2))
 
@@ -148,7 +181,7 @@ class Bishop(Piece):
     def __init__(self, team, image):
         super().__init__(3, team, image)
 
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
 
         for i in range(7 - pos_x):
@@ -197,7 +230,7 @@ class Queen(Piece):
     def __init__(self, team, image):
         super().__init__(9, team, image)
 
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
 
         for i in range(7 - pos_x):
@@ -280,7 +313,7 @@ class King(Piece):
         self.short_castle = True
         self.long_castle = True
     
-    def get_moves(self, pos_x, pos_y, board):
+    def get_moves(self, pos_x, pos_y, board, board_obj=None):
         moves = []
         sequences = ((1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1))
 
@@ -307,10 +340,12 @@ class King(Piece):
         if not long_rook_alive:
             self.long_castle = False
 
-        if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0:
+        oponent_moves = board_obj.get_all_moves((self.team + 1) % 2)
+        if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0 and \
+                (pos_y, pos_x + 2) not in oponent_moves:
             moves.append((pos_y, pos_x + 2))
         if self.long_castle is True and board[pos_y][pos_x - 1][1] == 0 and board[pos_y][pos_x - 2][1] == 0 and \
-                board[pos_y][pos_x - 3][1] == 0:
+                board[pos_y][pos_x - 3][1] == 0 and not ((pos_y, pos_x - 2) in oponent_moves or (pos_y, pos_x - 3) in oponent_moves):
             moves.append((pos_y, pos_x - 2))
 
         return moves
@@ -319,6 +354,7 @@ class King(Piece):
         y = 0
 
         for line in board:
+
             x = 0
             for _, row in line:
                 if type(row).__name__ == "Rook" and row.side == kind and row.team == self.team:

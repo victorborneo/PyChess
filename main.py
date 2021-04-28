@@ -44,6 +44,8 @@ def main():
                     tile = board.board[index_y][index_x][1]
 
                     if selected is not None and (index_y, index_x) in moves:
+                        board.reset_en_passant()
+
                         if type(selected).__name__ == "King":
                             if index_x - aux_index_x == 2:
                                 selected.castle(1, board.board)
@@ -62,15 +64,21 @@ def main():
                                 king.long_castle = False
                             elif selected.side == 1:
                                 king.short_castle = False
+                        elif type(selected).__name__ == "Pawn":
+                            if abs(index_y - aux_index_y) == 2:
+                                selected.en_passant = True
+                            if board.board[index_y][index_x][1] == 0 and aux_index_x != index_x:
+                                selected.do_en_passant(index_x, index_y, board.board)
 
                         board.board[aux_index_y][aux_index_x][1] = 0
                         board.board[index_y][index_x][1] = selected
                         board.turn = (board.turn + 1) % 2
+                        amoves = []
                         moves = []
                         selected = None
                     elif tile != 0 and tile.team == board.turn:
                         selected = board.board[index_y][index_x][1]
-                        moves = selected.get_moves(index_x, index_y, board.board)
+                        moves = selected.get_moves(index_x, index_y, board.board, board)
                         aux_index_x, aux_index_y = index_x, index_y
 
         redraw()
