@@ -3,6 +3,8 @@ import pygame
 class Board:
     def __init__(self):
         self.turn = 0
+        self.black_promotion = pygame.image.load(".\\Pieces\\black_promotion.png")
+        self.white_promotion = pygame.image.load(".\\Pieces\\white_promotion.png")
         self.image = pygame.image.load(".\\Pieces\\board.png")
         self.board = self.start()
 
