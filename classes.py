@@ -3,6 +3,9 @@ import pygame
 class Board:
     def __init__(self):
         self.turn = 0
+        self.check = 0
+        self.last_move = None
+        self.promotion = False
         self.black_promotion = pygame.image.load(".\\Pieces\\black_promotion.png")
         self.white_promotion = pygame.image.load(".\\Pieces\\white_promotion.png")
         self.image = pygame.image.load(".\\Pieces\\board.png")
@@ -70,6 +73,87 @@ class Board:
             for _, row in line:
                 if row != 0 and type(row).__name__ == "Pawn":
                     row.en_passant = False
+
+    def check_check(self, all_moves):
+        y = 0
+        for line in self.board:
+
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team == self.turn and type(row).__name__ == "King":
+                    index_x, index_y = x, y
+
+                x += 1
+            y += 1
+
+        for move in all_moves:
+            if move == (index_y, index_x):
+                self.check += 1
+
+    def get_king_legal_moves(self, x, y, all_moves):
+        moves = self.board[y][x][1].get_moves(x, y, self.board, self)
+
+        moves = [x for x in moves if x not in all_moves]
+
+        return moves
+
+    def get_legal_moves(self, x, y, all_moves):
+        if self.check > 1:
+            return []
+
+        moves = self.board[y][x][1].get_moves(x, y, self.board, self)
+        direction = self.get_attack_direction()
+
+        moves = [x for x in moves if x in direction]
+
+        return moves
+
+    def get_attack_direction(self):
+        moves = [self.last_move]
+
+        y = 0
+        for line in self.board:
+
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team == self.turn and type(row).__name__ == "King":
+                    index_x, index_y = x, y
+
+                x += 1
+            y += 1
+
+        horizontal_distance = self.last_move[1] - index_x
+        vertical_distance = self.last_move[0] - index_y
+
+        if vertical_distance == 0:
+            if horizontal_distance > 0:
+                for i in range(1, horizontal_distance):
+                    moves.append((index_y, index_x + i))
+            else:
+                for i in range(1, abs(horizontal_distance)):
+                    moves.append((index_y, index_x - i))
+        elif horizontal_distance == 0:
+            if vertical_distance > 0:
+                for i in range(1, vertical_distance):
+                    moves.append((index_y + i, index_x))
+            else:
+                for i in range(1, abs(vertical_distance)):
+                    moves.append((index_y - i, index_x))
+        else:
+            if vertical_distance > 0 and horizontal_distance > 0:
+                for i in range(1, vertical_distance):
+                    moves.append((index_y + i, index_x + i))
+            elif vertical_distance < 0 and horizontal_distance < 0:
+                for i in range(1, abs(vertical_distance)):
+                    moves.append((index_y - i, index_x - i))
+            elif vertical_distance > 0 and horizontal_distance < 0:
+                for i in range(1, vertical_distance):
+                    moves.append((index_y + i, index_x - i))
+            else:
+                for i in range(1, horizontal_distance):
+                    moves.append((index_y - i, index_x + i))
+
+        return moves
 
 class Piece:
     def __init__(self, value, team, image):
@@ -343,12 +427,14 @@ class King(Piece):
             self.long_castle = False
 
         oponent_moves = board_obj.get_all_moves((self.team + 1) % 2)
-        if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0 and \
-                (pos_y, pos_x + 2) not in oponent_moves:
-            moves.append((pos_y, pos_x + 2))
-        if self.long_castle is True and board[pos_y][pos_x - 1][1] == 0 and board[pos_y][pos_x - 2][1] == 0 and \
-                board[pos_y][pos_x - 3][1] == 0 and not ((pos_y, pos_x - 2) in oponent_moves or (pos_y, pos_x - 3) in oponent_moves):
-            moves.append((pos_y, pos_x - 2))
+        if (pos_y, pos_x) not in oponent_moves:
+            if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0 and not \
+                    ((pos_y, pos_x + 2) in oponent_moves or (pos_y, pos_x + 1) in oponent_moves):
+                moves.append((pos_y, pos_x + 2))
+            if self.long_castle is True and board[pos_y][pos_x - 1][1] == 0 and board[pos_y][pos_x - 2][1] == 0 and \
+                    board[pos_y][pos_x - 3][1] == 0 and not ((pos_y, pos_x - 1) in oponent_moves or (pos_y, pos_x - 2) in oponent_moves or \
+                        (pos_y, pos_x - 3) in oponent_moves):
+                moves.append((pos_y, pos_x - 2))
 
         return moves
 

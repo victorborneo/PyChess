@@ -2,9 +2,12 @@ from classes import *
 
 def main():
     pygame.init()
+    pygame.font.init()
 
     screen_x, screen_y = 600, 600
     pygame.display.set_caption("Chess")
+    font = pygame.font.SysFont('Arial', 30)
+    check_message = font.render("Check!!", True, (255, 0, 0))
     window = pygame.display.set_mode((screen_x, screen_y))
 
     def redraw():
@@ -23,17 +26,19 @@ def main():
                 x += 1
             y += 1
 
-        if promotion:
+        if board.promotion:
             if board.turn != 0:
                 window.blit(board.white_promotion, (20, 20))
             else:
                 window.blit(board.black_promotion, (20, 20))
 
+        if board.check > 0:
+            window.blit(check_message, (0, 0))
+
         pygame.display.update()
 
     run = True
     selected = None
-    promotion = False
     moves = []
     board = Board()
     while run:
@@ -43,8 +48,8 @@ def main():
             if event.type == pygame.QUIT:
                 run = False
 
-            elif event.type == pygame.KEYDOWN and promotion:
-                promotion = False
+            elif event.type == pygame.KEYDOWN and board.promotion:
+                board.promotion = False
 
                 if board.turn != 0:
                     color = ".\\Pieces\\white"
@@ -62,9 +67,9 @@ def main():
                 elif event.key == pygame.K_4:
                     board.board[index_y][index_x][1] = Knight(team, f"{color}_knight.png")
                 else:
-                    promotion = True
+                    board.promotion = True
 
-            elif event.type == pygame.MOUSEBUTTONDOWN and not promotion:
+            elif event.type == pygame.MOUSEBUTTONDOWN and not board.promotion:
                 x, y = pygame.mouse.get_pos()
                 index_x, index_y = (x - 20) // 70, (y - 8) // 70
 
@@ -72,7 +77,9 @@ def main():
                     tile = board.board[index_y][index_x][1]
 
                     if selected is not None and (index_y, index_x) in moves:
+                        board.last_move = (index_y, index_x)
                         board.reset_en_passant()
+                        board.check = 0
 
                         if type(selected).__name__ == "King":
                             if index_x - aux_index_x == 2:
@@ -98,17 +105,26 @@ def main():
                             if board.board[index_y][index_x][1] == 0 and aux_index_x != index_x:
                                 selected.do_en_passant(index_x, index_y, board.board)
                             if (selected.team == 0 and index_y == 0) or (selected.team == 1 and index_y == 7):
-                                promotion = True
+                                board.promotion = True
 
                         board.board[aux_index_y][aux_index_x][1] = 0
                         board.board[index_y][index_x][1] = selected
+                        all_moves = board.get_all_moves(board.turn)
                         board.turn = (board.turn + 1) % 2
-                        amoves = []
+                        board.check_check(all_moves)
                         moves = []
                         selected = None
                     elif tile != 0 and tile.team == board.turn:
                         selected = board.board[index_y][index_x][1]
-                        moves = selected.get_moves(index_x, index_y, board.board, board)
+
+                        if board.check > 0:
+                            if type(selected).__name__ == "King":
+                                moves = board.get_king_legal_moves(index_x, index_y, all_moves)
+                            else:
+                                moves = board.get_legal_moves(index_x, index_y, all_moves)
+                        else:
+                            moves = selected.get_moves(index_x, index_y, board.board, board)
+
                         aux_index_x, aux_index_y = index_x, index_y
 
         redraw()
