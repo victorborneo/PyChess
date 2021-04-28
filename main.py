@@ -7,7 +7,12 @@ def main():
     screen_x, screen_y = 600, 600
     pygame.display.set_caption("Chess")
     font = pygame.font.SysFont('Arial', 30)
+
     check_message = font.render("Check!!", True, (255, 0, 0))
+    checkmate_message = font.render("Checkmate!!", True, (255, 0, 0))
+    stalemate_message = font.render("Stalemate!!", True, (255, 0, 0))
+    draw_message = font.render("Draw!!", True, (255, 0, 0))
+
     window = pygame.display.set_mode((screen_x, screen_y))
 
     def redraw():
@@ -32,7 +37,13 @@ def main():
             else:
                 window.blit(board.black_promotion, (20, 20))
 
-        if board.check > 0:
+        if board.checkmate:
+            window.blit(checkmate_message, (0, 0))
+        elif board.stalemate:
+            window.blit(stalemate_message, (0, 0))
+        elif board.draw:
+            window.blit(draw_message, (0, 0))
+        elif board.check > 0:
             window.blit(check_message, (0, 0))
 
         pygame.display.update()
@@ -69,7 +80,7 @@ def main():
                 else:
                     board.promotion = True
 
-            elif event.type == pygame.MOUSEBUTTONDOWN and not board.promotion:
+            elif event.type == pygame.MOUSEBUTTONDOWN and not (board.promotion or board.checkmate or board.stalemate or board.draw):
                 x, y = pygame.mouse.get_pos()
                 index_x, index_y = (x - 20) // 70, (y - 8) // 70
 
@@ -110,8 +121,11 @@ def main():
                         board.board[aux_index_y][aux_index_x][1] = 0
                         board.board[index_y][index_x][1] = selected
                         all_moves = board.get_all_moves(board.turn)
+
                         board.turn = (board.turn + 1) % 2
                         board.check_check(all_moves)
+                        board.check_checkmate_or_stalemate(all_moves)
+
                         moves = []
                         selected = None
                     elif tile != 0 and tile.team == board.turn:

@@ -4,6 +4,9 @@ class Board:
     def __init__(self):
         self.turn = 0
         self.check = 0
+        self.checkmate = False
+        self.stalemate = False
+        self.draw = False
         self.last_move = None
         self.promotion = False
         self.black_promotion = pygame.image.load(".\\Pieces\\black_promotion.png")
@@ -91,6 +94,9 @@ class Board:
                 self.check += 1
 
     def get_king_legal_moves(self, x, y, all_moves):
+        if self.check == 0:
+            return self.board[y][x][1].get_moves(x, y, self.board, self)
+
         moves = self.board[y][x][1].get_moves(x, y, self.board, self)
 
         moves = [x for x in moves if x not in all_moves]
@@ -98,7 +104,9 @@ class Board:
         return moves
 
     def get_legal_moves(self, x, y, all_moves):
-        if self.check > 1:
+        if self.check == 0:
+            return self.board[y][x][1].get_moves(x, y, self.board, self)
+        elif self.check > 1:
             return []
 
         moves = self.board[y][x][1].get_moves(x, y, self.board, self)
@@ -155,11 +163,43 @@ class Board:
 
         return moves
 
+    def check_checkmate_or_stalemate(self, all_moves):
+        y = 0
+        available_moves = 0
+
+        for line in self.board:
+
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team == self.turn:
+                    if type(row).__name__ == "King":
+                        available_moves += len(self.get_king_legal_moves(x, y, all_moves))
+                    else:
+                        available_moves += len(self.get_legal_moves(x, y, all_moves))
+
+                x += 1
+            y += 1
+
+        if available_moves == 0:
+            if self.check > 0:
+                self.checkmate = True
+            else:
+                self.stalemate = True
+
 class Piece:
     def __init__(self, value, team, image):
         self.value = value
         self.team = team
         self.image = pygame.image.load(image)
+
+    def remove_negatives(self, moves):
+        new_moves = []
+
+        for move in moves:
+            if move[0] >= 0 and move[1] >= 0:
+                new_moves.append(move)
+
+        return new_moves
 
 class Pawn(Piece):
     def __init__(self, team, image):
@@ -194,7 +234,7 @@ class Pawn(Piece):
                     type(board[pos_y][pos_x + 1][1]).__name__ == "Pawn" and board[pos_y][pos_x + 1][1].en_passant):
                 moves.append((pos_y + increment, pos_x + 1))
 
-        return moves
+        return super().remove_negatives(moves)
 
     def do_en_passant(self, pos_x, pos_y, board):
         if self.team == 0:
@@ -242,7 +282,7 @@ class Rook(Piece):
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x))
 
-        return moves
+        return super().remove_negatives(moves)
 
 class Knight(Piece):
     def __init__(self, team, image):
@@ -261,7 +301,7 @@ class Knight(Piece):
             except IndexError:
                 pass
 
-        return moves
+        return super().remove_negatives(moves)
 
 class Bishop(Piece):
     def __init__(self, team, image):
@@ -310,7 +350,7 @@ class Bishop(Piece):
             except IndexError:
                 break
 
-        return moves
+        return super().remove_negatives(moves)
 
 class Queen(Piece):
     def __init__(self, team, image):
@@ -391,7 +431,7 @@ class Queen(Piece):
             except IndexError:
                 break
 
-        return moves
+        return super().remove_negatives(moves)
 
 class King(Piece):
     def __init__(self, team, image):
@@ -436,7 +476,7 @@ class King(Piece):
                         (pos_y, pos_x - 3) in oponent_moves):
                 moves.append((pos_y, pos_x - 2))
 
-        return moves
+        return super().remove_negatives(moves)
 
     def castle(self, kind, board):
         y = 0
