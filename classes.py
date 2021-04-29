@@ -57,17 +57,30 @@ class Board:
 
     def get_all_moves(self, team):
         moves = []
+        king_sequences = ((1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1))
 
         y = 0
         for line in self.board:
 
             x = 0
             for _, row in line:
-                if row != 0 and row.team == team and type(row).__name__ != "King":
-                    for move in row.get_moves(x, y, self.board):
-                        moves.append(move)
+                if row != 0 and row.team == team:
+                    if type(row).__name__ != "King":
+                        for move in row.get_moves(x, y, self.board):
+                            moves.append(move)
+                    else:
+                        index_x, index_y = x, y
                 x += 1
             y += 1
+
+        for move in king_sequences:
+            try:
+                self.board[index_y + move[0]][index_x + move[1]]
+                moves.append((index_y + move[0], index_x + move[1]))
+            except AttributeError:
+                moves.append((index_y + move[0], index_x + move[1]))
+            except IndexError:
+                pass
 
         return moves
 
@@ -93,26 +106,92 @@ class Board:
             if move == (index_y, index_x):
                 self.check += 1
 
-    def get_king_legal_moves(self, x, y, all_moves):
+    def get_king_legal_moves(self, x, y):
+        all_moves = self.get_all_moves((self.turn + 1) % 2)
+        moves = self.board[y][x][1].get_moves(x, y, self.board, all_moves)
+
+        x = 0
+        remove = []
+        for _, row in self.board[1]:
+            if row != 0 and row.team != self.turn and type(row).__name__ == "Pawn":
+                remove.append((3, x))
+            x += 1
+
+        x = 0
+        for _, row in self.board[6]:
+            if row != 0 and row.team != self.turn and type(row).__name__ == "Pawn":
+                remove.append((4, x))
+            x += 1
+
+        i = 0
+        new_all_moves = []
+        while i < len(all_moves):
+            if all_moves[i] in remove:
+                remove.remove(all_moves[i])
+            else:
+                new_all_moves.append(all_moves[i])
+            i += 1
+
+        y = 0
+        for line in self.board:
+
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team != self.turn:
+                    if type(row).__name__ == "Pawn":
+                        if self.turn == 0:
+                            if x + 1 < 8:
+                                new_all_moves.append((y + 1, x + 1))
+                            if x - 1 >= 0:
+                                new_all_moves.append((y + 1, x - 1))
+                        else:
+                            if x + 1 < 8:
+                                new_all_moves.append((y - 1, x + 1))
+                            if x - 1 >= 0:
+                                new_all_moves.append((y - 1, x - 1))
+
+                x += 1
+            y += 1
+
+        moves = [x for x in moves if x not in new_all_moves]
+
+        all_moves = []
+        for move in moves:
+            try:
+                if self.board[move[0]][move[1]][1].team != self.turn:
+                    all_moves.append(move)
+            except AttributeError:
+                all_moves.append(move)
+
+        return all_moves
+
+    def get_legal_moves(self, x, y, selected):
+        moves = []
+
         if self.check == 0:
-            return self.board[y][x][1].get_moves(x, y, self.board, self)
+            self.board[y][x][1] = 0
+            self.check_check(self.get_all_moves((self.turn + 1) % 2))
 
-        moves = self.board[y][x][1].get_moves(x, y, self.board, self)
+            if self.check > 0:
+                aux_moves = []
+            else:
+                aux_moves = selected.get_moves(x, y, self.board)
 
-        moves = [x for x in moves if x not in all_moves]
-
-        return moves
-
-    def get_legal_moves(self, x, y, all_moves):
-        if self.check == 0:
-            return self.board[y][x][1].get_moves(x, y, self.board, self)
+            self.check = 0
+            self.board[y][x][1] = selected
         elif self.check > 1:
-            return []
+            aux_moves = []
+        else:
+            aux_moves = selected.get_moves(x, y, self.board)
+            direction = self.get_attack_direction()
+            aux_moves = [x for x in aux_moves if x in direction]
 
-        moves = self.board[y][x][1].get_moves(x, y, self.board, self)
-        direction = self.get_attack_direction()
-
-        moves = [x for x in moves if x in direction]
+        for move in aux_moves:
+            try:
+                if self.board[move[0]][move[1]][1].team != self.turn:
+                    moves.append(move)
+            except AttributeError:
+                moves.append(move)
 
         return moves
 
@@ -163,7 +242,7 @@ class Board:
 
         return moves
 
-    def check_checkmate_or_stalemate(self, all_moves):
+    def check_checkmate_or_stalemate(self):
         y = 0
         available_moves = 0
 
@@ -173,9 +252,9 @@ class Board:
             for _, row in line:
                 if row != 0 and row.team == self.turn:
                     if type(row).__name__ == "King":
-                        available_moves += len(self.get_king_legal_moves(x, y, all_moves))
+                        available_moves += len(self.get_king_legal_moves(x, y))
                     else:
-                        available_moves += len(self.get_legal_moves(x, y, all_moves))
+                        available_moves += len(self.get_legal_moves(x, y, self.board[y][x][1]))
 
                 x += 1
             y += 1
@@ -206,7 +285,7 @@ class Pawn(Piece):
         super().__init__(1, team, image)
         self.en_passant = False
 
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board):
         moves = []
     
         increment = -1
@@ -247,37 +326,37 @@ class Rook(Piece):
         super().__init__(5, team, image)
         self.side = side
 
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board):
         moves = []
 
         for i in range(7 - pos_x):
             try:
-                if board[pos_y][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y, pos_x + i + 1))
+                board[pos_y][pos_x + i + 1][1].team
+                moves.append((pos_y, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y, pos_x + i + 1))
 
         for i in range(pos_x):
             try:
-                if board[pos_y][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y, pos_x - i - 1))
+                board[pos_y][pos_x - i - 1][1].team
+                moves.append((pos_y, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y, pos_x - i - 1))
 
         for i in range(7 - pos_y):
             try:
-                if board[pos_y + i + 1][pos_x][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x))
+                board[pos_y + i + 1][pos_x][1].team
+                moves.append((pos_y + i + 1, pos_x))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x))
 
         for i in range(pos_y): 
             try:
-                if board[pos_y - i - 1][pos_x][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x))
+                board[pos_y - i - 1][pos_x][1].team
+                moves.append((pos_y - i - 1, pos_x))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x))
@@ -288,14 +367,14 @@ class Knight(Piece):
     def __init__(self, team, image):
         super().__init__(3, team, image)
 
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board):
         moves = []
         sequences = ((-2, -1), (-2, 1), (2, -1), (2, 1), (-1, -2), (1, -2), (-1, 2), (1, 2))
 
         for move in sequences:
             try:
-                if board[pos_y + move[0]][pos_x + move[1]][1].team != self.team:
-                    moves.append((pos_y + move[0], pos_x + move[1]))
+                board[pos_y + move[0]][pos_x + move[1]]
+                moves.append((pos_y + move[0], pos_x + move[1]))
             except AttributeError:
                 moves.append((pos_y + move[0], pos_x + move[1]))
             except IndexError:
@@ -307,13 +386,13 @@ class Bishop(Piece):
     def __init__(self, team, image):
         super().__init__(3, team, image)
 
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board):
         moves = []
 
         for i in range(7 - pos_x):
             try:
-                if board[pos_y + i + 1][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x + i + 1))
+                board[pos_y + i + 1][pos_x + i + 1][1].team
+                moves.append((pos_y + i + 1, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x + i + 1))
@@ -322,8 +401,8 @@ class Bishop(Piece):
 
         for i in range(pos_x):
             try:
-                if board[pos_y - i - 1][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x - i - 1))
+                board[pos_y - i - 1][pos_x - i - 1][1].team
+                moves.append((pos_y - i - 1, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x - i - 1))
@@ -332,8 +411,8 @@ class Bishop(Piece):
 
         for i in range(7 - pos_y):
             try:
-                if board[pos_y + i + 1][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x - i - 1))
+                board[pos_y + i + 1][pos_x - i - 1][1].team
+                moves.append((pos_y + i + 1, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x - i - 1))
@@ -342,8 +421,8 @@ class Bishop(Piece):
 
         for i in range(pos_y): 
             try:
-                if board[pos_y - i - 1][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x + i + 1))
+                board[pos_y - i - 1][pos_x + i + 1][1].team
+                moves.append((pos_y - i - 1, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x + i + 1))
@@ -356,45 +435,45 @@ class Queen(Piece):
     def __init__(self, team, image):
         super().__init__(9, team, image)
 
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board):
         moves = []
 
         for i in range(7 - pos_x):
             try:
-                if board[pos_y][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y, pos_x + i + 1))
+                board[pos_y][pos_x + i + 1][1].team
+                moves.append((pos_y, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y, pos_x + i + 1))
 
         for i in range(pos_x):
             try:
-                if board[pos_y][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y, pos_x - i - 1))
+                board[pos_y][pos_x - i - 1][1].team
+                moves.append((pos_y, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y, pos_x - i - 1))
 
         for i in range(7 - pos_y):
             try:
-                if board[pos_y + i + 1][pos_x][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x))
+                board[pos_y + i + 1][pos_x][1].team
+                moves.append((pos_y + i + 1, pos_x))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x))
 
         for i in range(pos_y): 
             try:
-                if board[pos_y - i - 1][pos_x][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x))
+                board[pos_y - i - 1][pos_x][1].team
+                moves.append((pos_y - i - 1, pos_x))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x))
 
         for i in range(7 - pos_x):
             try:
-                if board[pos_y + i + 1][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x + i + 1))
+                board[pos_y + i + 1][pos_x + i + 1][1].team
+                moves.append((pos_y + i + 1, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x + i + 1))
@@ -403,8 +482,8 @@ class Queen(Piece):
 
         for i in range(pos_x):
             try:
-                if board[pos_y - i - 1][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x - i - 1))
+                board[pos_y - i - 1][pos_x - i - 1][1].team
+                moves.append((pos_y - i - 1, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x - i - 1))
@@ -413,8 +492,8 @@ class Queen(Piece):
 
         for i in range(7 - pos_y):
             try:
-                if board[pos_y + i + 1][pos_x - i - 1][1].team != self.team:
-                    moves.append((pos_y + i + 1, pos_x - i - 1))
+                board[pos_y + i + 1][pos_x - i - 1][1].team
+                moves.append((pos_y + i + 1, pos_x - i - 1))
                 break
             except AttributeError:
                 moves.append((pos_y + i + 1, pos_x - i - 1))
@@ -423,8 +502,8 @@ class Queen(Piece):
 
         for i in range(pos_y): 
             try:
-                if board[pos_y - i - 1][pos_x + i + 1][1].team != self.team:
-                    moves.append((pos_y - i - 1, pos_x + i + 1))
+                board[pos_y - i - 1][pos_x + i + 1][1].team
+                moves.append((pos_y - i - 1, pos_x + i + 1))
                 break
             except AttributeError:
                 moves.append((pos_y - i - 1, pos_x + i + 1))
@@ -439,14 +518,14 @@ class King(Piece):
         self.short_castle = True
         self.long_castle = True
     
-    def get_moves(self, pos_x, pos_y, board, board_obj=None):
+    def get_moves(self, pos_x, pos_y, board, all_moves):
         moves = []
         sequences = ((1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1))
 
         for move in sequences:
             try:
-                if board[pos_y + move[0]][pos_x + move[1]][1].team != self.team:
-                    moves.append((pos_y + move[0], pos_x + move[1]))
+                board[pos_y + move[0]][pos_x + move[1]]
+                moves.append((pos_y + move[0], pos_x + move[1]))
             except AttributeError:
                 moves.append((pos_y + move[0], pos_x + move[1]))
             except IndexError:
@@ -466,14 +545,13 @@ class King(Piece):
         if not long_rook_alive:
             self.long_castle = False
 
-        oponent_moves = board_obj.get_all_moves((self.team + 1) % 2)
-        if (pos_y, pos_x) not in oponent_moves:
+        if (pos_y, pos_x) not in all_moves:
             if self.short_castle is True and board[pos_y][pos_x + 1][1] == 0 and board[pos_y][pos_x + 2][1] == 0 and not \
-                    ((pos_y, pos_x + 2) in oponent_moves or (pos_y, pos_x + 1) in oponent_moves):
+                    ((pos_y, pos_x + 2) in all_moves or (pos_y, pos_x + 1) in all_moves):
                 moves.append((pos_y, pos_x + 2))
             if self.long_castle is True and board[pos_y][pos_x - 1][1] == 0 and board[pos_y][pos_x - 2][1] == 0 and \
-                    board[pos_y][pos_x - 3][1] == 0 and not ((pos_y, pos_x - 1) in oponent_moves or (pos_y, pos_x - 2) in oponent_moves or \
-                        (pos_y, pos_x - 3) in oponent_moves):
+                    board[pos_y][pos_x - 3][1] == 0 and not ((pos_y, pos_x - 1) in all_moves or (pos_y, pos_x - 2) in all_moves or \
+                        (pos_y, pos_x - 3) in all_moves):
                 moves.append((pos_y, pos_x - 2))
 
         return super().remove_negatives(moves)

@@ -124,20 +124,25 @@ def main():
 
                         board.turn = (board.turn + 1) % 2
                         board.check_check(all_moves)
-                        board.check_checkmate_or_stalemate(all_moves)
+                        board.check_checkmate_or_stalemate()
 
                         moves = []
                         selected = None
                     elif tile != 0 and tile.team == board.turn:
+                        moves = []
                         selected = board.board[index_y][index_x][1]
 
-                        if board.check > 0:
-                            if type(selected).__name__ == "King":
-                                moves = board.get_king_legal_moves(index_x, index_y, all_moves)
-                            else:
-                                moves = board.get_legal_moves(index_x, index_y, all_moves)
+                        if type(selected).__name__ == "King":
+                            aux_moves = board.get_king_legal_moves(index_x, index_y)
                         else:
-                            moves = selected.get_moves(index_x, index_y, board.board, board)
+                            aux_moves = board.get_legal_moves(index_x, index_y, selected)
+
+                        for move in aux_moves:
+                            try:
+                                if board.board[move[0]][move[1]][1].team != board.turn:
+                                    moves.append(move)
+                            except AttributeError:
+                                moves.append(move)
 
                         aux_index_x, aux_index_y = index_x, index_y
 
