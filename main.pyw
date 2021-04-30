@@ -7,6 +7,7 @@ def main():
     screen_x, screen_y = 600, 600
     pygame.display.set_caption("Chess")
     font = pygame.font.SysFont('Arial', 30)
+    pygame.display.set_icon(pygame.image.load('.\\Pieces\\icon.png'))
 
     check_message = font.render("Check!!", True, (255, 0, 0))
     checkmate_message = font.render("Checkmate!!", True, (255, 0, 0))

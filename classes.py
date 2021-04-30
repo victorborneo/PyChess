@@ -217,8 +217,24 @@ class Board:
 
             self.board[y][x][1] = selected
         elif self.check == 1:
+            moves = []
             direction = self.get_attack_direction()
-            moves = [x for x in aux_moves if x in direction]
+            aux_moves = [x for x in aux_moves if x in direction]
+            
+            self.board[y][x][1] = 0
+            for move in aux_moves:
+                previous = self.board[move[0]][move[1]][1]
+                self.check = 0
+                self.board[move[0]][move[1]][1] = selected
+                self.check_check(self.get_all_moves((self.turn + 1) % 2))
+
+                if self.check == 0:
+                    moves.append(move)
+
+                self.board[move[0]][move[1]][1] = previous
+
+            self.check = 1
+            self.board[y][x][1] = selected
         else:
             moves = []
 
