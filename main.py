@@ -59,26 +59,31 @@ def main():
             if event.type == pygame.QUIT:
                 run = False
 
-            elif event.type == pygame.KEYDOWN and board.promotion:
-                board.promotion = False
+            elif event.type == pygame.KEYDOWN:
+                if board.promotion:
+                    board.promotion = False
 
-                if board.turn != 0:
-                    color = ".\\Pieces\\white"
-                    team = 0
-                else:
-                    color = ".\\Pieces\\black"
-                    team = 1
+                    if board.turn != 0:
+                        color = ".\\Pieces\\white"
+                        team = 0
+                    else:
+                        color = ".\\Pieces\\black"
+                        team = 1
 
-                if event.key == pygame.K_1:
-                    board.board[index_y][index_x][1] = Queen(team, f"{color}_queen.png")
-                elif event.key == pygame.K_2:
-                    board.board[index_y][index_x][1] = Rook(team, f"{color}_rook.png", -1)
-                elif event.key == pygame.K_3:
-                    board.board[index_y][index_x][1] = Bishop(team, f"{color}_bishop.png")
-                elif event.key == pygame.K_4:
-                    board.board[index_y][index_x][1] = Knight(team, f"{color}_knight.png")
-                else:
-                    board.promotion = True
+                    if event.key == pygame.K_1:
+                        board.board[index_y][index_x][1] = Queen(team, f"{color}_queen.png")
+                    elif event.key == pygame.K_2:
+                        board.board[index_y][index_x][1] = Rook(team, f"{color}_rook.png", -1)
+                    elif event.key == pygame.K_3:
+                        board.board[index_y][index_x][1] = Bishop(team, f"{color}_bishop.png")
+                    elif event.key == pygame.K_4:
+                        board.board[index_y][index_x][1] = Knight(team, f"{color}_knight.png")
+                    else:
+                        board.promotion = True
+
+                if board.checkmate or board.stalemate or board.draw:
+                    if event.key == pygame.K_RETURN:
+                        board = Board()
 
             elif event.type == pygame.MOUSEBUTTONDOWN and not (board.promotion or board.checkmate or board.stalemate or board.draw):
                 x, y = pygame.mouse.get_pos()
@@ -125,6 +130,7 @@ def main():
                         board.turn = (board.turn + 1) % 2
                         board.check_check(all_moves)
                         board.check_checkmate_or_stalemate()
+                        board.check_draw()
 
                         moves = []
                         selected = None

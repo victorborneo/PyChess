@@ -110,18 +110,24 @@ class Board:
         all_moves = self.get_all_moves((self.turn + 1) % 2)
         moves = self.board[index_y][index_x][1].get_moves(index_x, index_y, self.board, all_moves)
 
-        x = 0
+        y = 0
         remove = []
-        for _, row in self.board[1]:
-            if row != 0 and row.team != self.turn and type(row).__name__ == "Pawn":
-                remove.append((3, x))
-            x += 1
+        for line in self.board:
 
-        x = 0
-        for _, row in self.board[6]:
-            if row != 0 and row.team != self.turn and type(row).__name__ == "Pawn":
-                remove.append((4, x))
-            x += 1
+            x = 0
+            for _, row in line:
+                if row != 0 and row.team != self.turn and type(row).__name__ == "Pawn":
+                    if row.team == 0:
+                        remove.append((y - 1, x))
+                        if y == 6:
+                            remove.append((y - 2, x))
+                    else:
+                        remove.append((y + 1, x))
+                        if y == 1:
+                            remove.append((y + 2, x))
+
+                x += 1
+            y += 1
 
         i = 0
         new_all_moves = []
@@ -196,13 +202,12 @@ class Board:
 
         if self.check == 0:
             moves = []
-            all_moves = self.get_all_moves((self.turn + 1) % 2)
 
             self.board[y][x][1] = 0
             for move in aux_moves:
                 previous = self.board[move[0]][move[1]][1]
                 self.board[move[0]][move[1]][1] = selected
-                self.check_check(all_moves)
+                self.check_check(self.get_all_moves((self.turn + 1) % 2))
 
                 if self.check == 0:
                     moves.append(move)
@@ -288,6 +293,26 @@ class Board:
             else:
                 self.stalemate = True
 
+    def check_draw(self):
+        white = 0
+        black = 0
+
+        draws = ((1, 1), (2, 1), (1, 2))
+
+        for line in self.board:
+            for _, row in line:
+                if row != 0:
+                    if type(row).__name__ in ("Queen", "Rook", "Pawn"):
+                        return
+
+                    if row.team == 0:
+                        white += 1
+                    else:
+                        black += 1
+
+        if (black, white) in draws:
+            self.draw = True
+
 class Piece:
     def __init__(self, value, team, image):
         self.value = value
@@ -315,26 +340,27 @@ class Pawn(Piece):
         if self.team == 1:
             increment = 1
 
-        if board[pos_y + increment][pos_x][1] == 0:
-            moves.append((pos_y + increment, pos_x))
+        if 0 <= pos_y + increment < 8:
+            if board[pos_y + increment][pos_x][1] == 0:
+                moves.append((pos_y + increment, pos_x))
 
-            if self.team == 0 and pos_y == 6 and board[pos_y - 2][pos_x][1] == 0:
-                moves.append((pos_y - 2, pos_x))
+                if self.team == 0 and pos_y == 6 and board[pos_y - 2][pos_x][1] == 0:
+                    moves.append((pos_y - 2, pos_x))
 
-            if self.team == 1 and pos_y == 1 and board[pos_y + 2][pos_x][1] == 0:
-                moves.append((pos_y + 2, pos_x))
+                if self.team == 1 and pos_y == 1 and board[pos_y + 2][pos_x][1] == 0:
+                    moves.append((pos_y + 2, pos_x))
 
-        if pos_x - 1 >= 0:
-            if (board[pos_y + increment][pos_x - 1][1] != 0 and board[pos_y + increment][pos_x - 1][1].team != self.team) or \
-                (board[pos_y][pos_x - 1][1] != 0 and board[pos_y][pos_x - 1][1].team != self.team and \
-                    type(board[pos_y][pos_x - 1][1]).__name__ == "Pawn" and board[pos_y][pos_x - 1][1].en_passant):
-                moves.append((pos_y + increment, pos_x - 1))
+            if pos_x - 1 >= 0:
+                if (board[pos_y + increment][pos_x - 1][1] != 0 and board[pos_y + increment][pos_x - 1][1].team != self.team) or \
+                    (board[pos_y][pos_x - 1][1] != 0 and board[pos_y][pos_x - 1][1].team != self.team and \
+                        type(board[pos_y][pos_x - 1][1]).__name__ == "Pawn" and board[pos_y][pos_x - 1][1].en_passant):
+                    moves.append((pos_y + increment, pos_x - 1))
 
-        if pos_x + 1 < 8:
-            if (board[pos_y + increment][pos_x + 1][1] != 0 and board[pos_y + increment][pos_x + 1][1].team != self.team) or \
-                (board[pos_y][pos_x + 1][1] != 0 and board[pos_y][pos_x + 1][1].team != self.team and \
-                    type(board[pos_y][pos_x + 1][1]).__name__ == "Pawn" and board[pos_y][pos_x + 1][1].en_passant):
-                moves.append((pos_y + increment, pos_x + 1))
+            if pos_x + 1 < 8:
+                if (board[pos_y + increment][pos_x + 1][1] != 0 and board[pos_y + increment][pos_x + 1][1].team != self.team) or \
+                    (board[pos_y][pos_x + 1][1] != 0 and board[pos_y][pos_x + 1][1].team != self.team and \
+                        type(board[pos_y][pos_x + 1][1]).__name__ == "Pawn" and board[pos_y][pos_x + 1][1].en_passant):
+                    moves.append((pos_y + increment, pos_x + 1))
 
         return super().remove_negatives(moves)
 
