@@ -106,9 +106,9 @@ class Board:
             if move == (index_y, index_x):
                 self.check += 1
 
-    def get_king_legal_moves(self, x, y):
+    def get_king_legal_moves(self, index_x, index_y):
         all_moves = self.get_all_moves((self.turn + 1) % 2)
-        moves = self.board[y][x][1].get_moves(x, y, self.board, all_moves)
+        moves = self.board[index_y][index_x][1].get_moves(index_x, index_y, self.board, all_moves)
 
         x = 0
         remove = []
@@ -155,43 +155,67 @@ class Board:
 
         moves = [x for x in moves if x not in new_all_moves]
 
-        all_moves = []
+        aux_all_moves = []
         for move in moves:
             try:
                 if self.board[move[0]][move[1]][1].team != self.turn:
-                    all_moves.append(move)
+                    aux_all_moves.append(move)
             except AttributeError:
-                all_moves.append(move)
+                aux_all_moves.append(move)
 
-        return all_moves
+        king = self.board[index_y][index_x][1]
+        self.board[index_y][index_x][1] = 0
+        aux_check = self.check
 
-    def get_legal_moves(self, x, y, selected):
-        moves = []
-
-        if self.check == 0:
-            self.board[y][x][1] = 0
+        final = []
+        for move in aux_all_moves:
+            self.check = 0
+            previous = self.board[move[0]][move[1]][1]
+            self.board[move[0]][move[1]][1] = king
             self.check_check(self.get_all_moves((self.turn + 1) % 2))
 
-            if self.check > 0:
-                aux_moves = []
-            else:
-                aux_moves = selected.get_moves(x, y, self.board)
+            if self.check == 0:
+                final.append(move)
 
-            self.check = 0
-            self.board[y][x][1] = selected
-        elif self.check > 1:
-            aux_moves = []
-        else:
-            aux_moves = selected.get_moves(x, y, self.board)
-            direction = self.get_attack_direction()
-            aux_moves = [x for x in aux_moves if x in direction]
+            self.board[move[0]][move[1]][1] = previous
 
-        for move in aux_moves:
+        self.check = aux_check
+        self.board[index_y][index_x][1] = king
+        return final
+
+    def get_legal_moves(self, x, y, selected):
+        piece_moves = selected.get_moves(x, y, self.board)
+
+        aux_moves = []
+        for move in piece_moves:
             try:
                 if self.board[move[0]][move[1]][1].team != self.turn:
-                    moves.append(move)
+                    aux_moves.append(move)
             except AttributeError:
-                moves.append(move)
+                aux_moves.append(move)
+
+        if self.check == 0:
+            moves = []
+            all_moves = self.get_all_moves((self.turn + 1) % 2)
+
+            self.board[y][x][1] = 0
+            for move in aux_moves:
+                previous = self.board[move[0]][move[1]][1]
+                self.board[move[0]][move[1]][1] = selected
+                self.check_check(all_moves)
+
+                if self.check == 0:
+                    moves.append(move)
+
+                self.check = 0
+                self.board[move[0]][move[1]][1] = previous
+
+            self.board[y][x][1] = selected
+        elif self.check == 1:
+            direction = self.get_attack_direction()
+            moves = [x for x in aux_moves if x in direction]
+        else:
+            moves = []
 
         return moves
 
@@ -247,7 +271,6 @@ class Board:
         available_moves = 0
 
         for line in self.board:
-
             x = 0
             for _, row in line:
                 if row != 0 and row.team == self.turn:
