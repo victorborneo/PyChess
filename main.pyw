@@ -81,6 +81,11 @@ def main():
                     else:
                         board.promotion = True
 
+                    all_moves = board.get_all_moves(board.turn)
+                    board.check_check(all_moves)
+                    board.check_checkmate_or_stalemate()
+                    board.check_draw()
+
                 if board.checkmate or board.stalemate or board.draw:
                     if event.key == pygame.K_RETURN:
                         board = Board()
