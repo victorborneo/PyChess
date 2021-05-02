@@ -71,18 +71,18 @@ def main():
                         color = ".\\Pieces\\black"
                         team = 1
 
-                    if event.key == pygame.K_1:
+                    if event.key in (pygame.K_1, pygame.K_KP_1) :
                         board.board[index_y][index_x][1] = Queen(team, f"{color}_queen.png")
-                    elif event.key == pygame.K_2:
+                    elif event.key in (pygame.K_2, pygame.K_KP_2):
                         board.board[index_y][index_x][1] = Rook(team, f"{color}_rook.png", -1)
-                    elif event.key == pygame.K_3:
+                    elif event.key in (pygame.K_3, pygame.K_KP_3):
                         board.board[index_y][index_x][1] = Bishop(team, f"{color}_bishop.png")
-                    elif event.key == pygame.K_4:
+                    elif event.key in (pygame.K_4, pygame.K_KP_4):
                         board.board[index_y][index_x][1] = Knight(team, f"{color}_knight.png")
                     else:
                         board.promotion = True
 
-                    all_moves = board.get_all_moves(board.turn)
+                    all_moves = board.get_all_moves((board.turn + 1) % 2)
                     board.check_check(all_moves)
                     board.check_checkmate_or_stalemate()
                     board.check_draw()
